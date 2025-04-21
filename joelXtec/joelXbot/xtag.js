@@ -1,3 +1,5 @@
+
+
 /*                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 ─██████──────────██████████████──████████████████────████████████────────────────────────────██████──██████████████──██████████████──██████─────────
@@ -14,17 +16,29 @@
 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 made by lord joel
 contact owner +2557114595078
+
+CURRENTLY RUNNING ON BETA VERSION!!
+*
+   * @project_name : JOEL XMD
+   * @author : LORD_JOEL
+   * @youtube : https://www.youtube.com/@joeljamestech255
+   * @infoription : joel Md ,A Multi-functional whatsapp user bot.
+   * @version 10 
+*
+   * Licensed under the  GPL-3.0 License;
+* 
+   * ┌┤Created By joel tech info.
+   * © 2025 joel md ✭ ⛥.
+   * plugin date : 11/1/2025
+* 
+   * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   * SOFTWARE.
 */
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -32,36 +46,66 @@ contact owner +2557114595078
 
 import config from '../../config.cjs';
 
-const profileCommand = async (m, Matrix) => {
-  const prefix = config.PREFIX;
-  const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+const tagCommands = async (m, gss) => {
+  try {
+    const botNumber = await gss.decodeJid(gss.user.id);
+    const prefix = config.PREFIX;
+    const body = m.body.trim();
+    const cmd = body.startsWith(prefix) ? body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+    const text = body.slice(prefix.length + cmd.length).trim();
 
-  if (cmd === 'profile') {
-    let sender = m.quoted ? m.quoted.sender : m.sender;
-    let name = m.quoted ? "@" + sender.split("@")[0] : m.pushName;
+    const validCommands = ['tagall', 'tagadmin', 'tagnotadmin', 'hidetag'];
+    if (!validCommands.includes(cmd)) return;
+    if (!m.isGroup) return m.reply('╰┈➤ *This command only works in groups.*');
 
-    let ppUrl;
-    try {
-      ppUrl = await Matrix.profilePictureUrl(sender, 'image');
-    } catch {
-      ppUrl = "https://telegra.ph/file/95680cd03e012bb08b9e6.jpg";
+    const groupMetadata = await gss.groupMetadata(m.from);
+    const participants = groupMetadata.participants;
+
+    let filteredParticipants;
+
+    switch (cmd) {
+      case 'tagadmin':
+        filteredParticipants = participants.filter(p => p.admin);
+        break;
+      case 'tagnotadmin':
+        filteredParticipants = participants.filter(p => !p.admin);
+        break;
+      case 'tagall':
+      case 'hidetag':
+        filteredParticipants = participants;
+        break;
     }
 
-    let status;
-    try {
-      status = await Matrix.fetchStatus(sender);
-    } catch (error) {
-      status = { status: "About not accessible due to user privacy" };
-    }
-
-    const mess = {
-      image: { url: ppUrl },
-      caption: `Name: ${name}\nAbout:\n${status.status}\n\n*ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴊᴏᴇʟ xᴍᴅ*`,
-      ...(m.quoted ? { mentions: [sender] } : {}) // Mention only if quoted
+    const headers = {
+      tagall: '╭─────◆◇◆─────╮\n  *ATTENTION EVERYONE*\n╰─────◆◇◆─────╯',
+      tagadmin: '╭─────◆◇◆─────╮\n    *ADMINS ONLY*\n╰─────◆◇◆─────╯',
+      tagnotadmin: '╭─────◆◇◆─────╮\n  *NON-ADMINS ONLY*\n╰─────◆◇◆─────╯',
+      hidetag: '╭─────◆◇◆─────╮\n     *HIDDEN TAG*\n╰─────◆◇◆─────╯'
     };
 
-    await Matrix.sendMessage(m.from, mess, { quoted: m });
+    const title = headers[cmd];
+    const msgText = m.quoted?.text || text || 'no message';
+    let message = `${title}\n\n*✦ Message:* ${msgText}\n\n`;
+
+    if (cmd !== 'hidetag') {
+      for (let participant of filteredParticipants) {
+        message += `┊➥ @${participant.id.split('@')[0]}\n`;
+      }
+    }
+
+    await gss.sendMessage(
+      m.from,
+      {
+        text: cmd === 'hidetag' ? msgText : message,
+        mentions: filteredParticipants.map(p => p.id)
+      },
+      { quoted: m }
+    );
+
+  } catch (error) {
+    console.error('Error:', error);
+    await m.reply('⚠️ *Oops! Something glitched while tagging. Joel XMD Squad is on it!*');
   }
 };
 
-export default profileCommand;
+export default tagCommands;

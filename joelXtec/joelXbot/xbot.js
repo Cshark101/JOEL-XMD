@@ -1,3 +1,4 @@
+
 /*                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 ─██████──────────██████████████──████████████████────████████████────────────────────────────██████──██████████████──██████████████──██████─────────
@@ -14,6 +15,28 @@
 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 made by lord joel
 contact owner +2557114595078
+
+CURRENTLY RUNNING ON BETA VERSION!!
+*
+   * @project_name : JOEL XMD
+   * @author : LORD_JOEL
+   * @youtube : https://www.youtube.com/@joeljamestech255
+   * @infoription : joel Md ,A Multi-functional whatsapp user bot.
+   * @version 10 
+*
+   * Licensed under the  GPL-3.0 License;
+* 
+   * ┌┤Created By joel tech info.
+   * © 2025 joel md ✭ ⛥.
+   * plugin date : 11/1/2025
+* 
+   * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   * SOFTWARE.
 */
 
 
@@ -23,45 +46,112 @@ contact owner +2557114595078
 
 
 
-
-
-
-
-
-
-
+import { promises as fs } from 'fs';
+import path from 'path';
+import fetch from 'node-fetch';
 import config from '../../config.cjs';
 
-const profileCommand = async (m, Matrix) => {
-  const prefix = config.PREFIX;
-  const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+const __filename = new URL(import.meta.url).pathname;
+const __dirname = path.dirname(__filename);
+const chatHistoryFile = path.resolve(__dirname, '../deepseek_history.json');
 
-  if (cmd === 'profile') {
-    let sender = m.quoted ? m.quoted.sender : m.sender;
-    let name = m.quoted ? "@" + sender.split("@")[0] : m.pushName;
+const deepSeekSystemPrompt = "You are an intelligent AI assistant.";
 
-    let ppUrl;
+async function readChatHistoryFromFile() {
     try {
-      ppUrl = await Matrix.profilePictureUrl(sender, 'image');
-    } catch {
-      ppUrl = "https://telegra.ph/file/95680cd03e012bb08b9e6.jpg";
+        const data = await fs.readFile(chatHistoryFile, "utf-8");
+        return JSON.parse(data);
+    } catch (err) {
+        return {};
+    }
+}
+
+async function writeChatHistoryToFile(chatHistory) {
+    try {
+        await fs.writeFile(chatHistoryFile, JSON.stringify(chatHistory, null, 2));
+    } catch (err) {
+        console.error('Error writing chat history to file:', err);
+    }
+}
+
+async function updateChatHistory(chatHistory, sender, message) {
+    if (!chatHistory[sender]) {
+        chatHistory[sender] = [];
+    }
+    chatHistory[sender].push(message);
+    if (chatHistory[sender].length > 20) {
+        chatHistory[sender].shift();
+    }
+    await writeChatHistoryToFile(chatHistory);
+}
+
+async function deleteChatHistory(chatHistory, userId) {
+    delete chatHistory[userId];
+    await writeChatHistoryToFile(chatHistory);
+}
+
+const deepseek = async (m, Matrix) => {
+    const chatHistory = await readChatHistoryFromFile();
+    const text = m.body.toLowerCase();
+
+    if (text === "/forget") {
+        await deleteChatHistory(chatHistory, m.sender);
+        await Matrix.sendMessage(m.from, { text: 'Conversation deleted successfully' }, { quoted: m });
+        return;
     }
 
-    let status;
-    try {
-      status = await Matrix.fetchStatus(sender);
-    } catch (error) {
-      status = { status: "About not accessible due to user privacy" };
+    const prefix = config.PREFIX;
+    const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+    const prompt = m.body.slice(prefix.length + cmd.length).trim();
+
+    const validCommands = ['bot'];
+
+    if (validCommands.includes(cmd)) {
+        if (!prompt) {
+            await Matrix.sendMessage(m.from, { text: 'Please give me a prompt' }, { quoted: m });
+            return;
+        }
+
+        try {
+            const senderChatHistory = chatHistory[m.sender] || [];
+            const messages = [
+                { role: "system", content: deepSeekSystemPrompt },
+                ...senderChatHistory,
+                { role: "user", content: prompt }
+            ];
+
+            await m.React("⏳");
+
+            const apiUrl = `https://api.paxsenix.biz.id/ai/gemini-realtime?text=${encodeURIComponent(prompt)}&session_id=ZXlKaklqb2lZMTg0T0RKall6TTNNek13TVdFNE1qazNJaXdpY2lJNkluSmZNbU01TUdGa05ETmtNVFF3WmpNNU5pSXNJbU5vSWpvaWNtTmZZVE16TURWaE1qTmpNR1ExTnpObFl5Sjk`;
+            const response = await fetch(apiUrl);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const responseData = await response.json();
+            const answer = responseData.message;
+
+            await updateChatHistory(chatHistory, m.sender, { role: "user", content: prompt });
+            await updateChatHistory(chatHistory, m.sender, { role: "assistant", content: answer });
+
+            const codeMatch = answer.match(/```([\s\S]*?)```/);
+
+            if (codeMatch) {
+                const code = codeMatch[1];
+
+                await Matrix.sendMessage(m.from, { text: `🔹 *Here's your code snippet:* \n\n\`\`\`${code}\`\`\`` }, { quoted: m });
+            } else {
+                await Matrix.sendMessage(m.from, { text: answer }, { quoted: m });
+            }
+
+            await m.React("✅");
+        } catch (err) {
+            await Matrix.sendMessage(m.from, { text: "Something went wrong, please try again." }, { quoted: m });
+            console.error('Error fetching response from DeepSeek API:', err);
+            await m.React("❌");
+        }
     }
-
-    const mess = {
-      image: { url: ppUrl },
-      caption: `Name: ${name}\nAbout:\n${status.status}\n\n*ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴊᴏᴇʟ xᴍᴅ*`,
-      ...(m.quoted ? { mentions: [sender] } : {}) // Mention only if quoted
-    };
-
-    await Matrix.sendMessage(m.from, mess, { quoted: m });
-  }
 };
 
-export default profileCommand;
+export default deepseek;

@@ -1,3 +1,4 @@
+
 /*                                   
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 ─██████──────────██████████████──████████████████────████████████────────────────────────────██████──██████████████──██████████████──██████─────────
@@ -26,42 +27,91 @@ contact owner +2557114595078
 
 
 
+// those codes where created by joel james tech
+// main repo: https://github.com/joeljamestech
 
 
+import fs from 'fs';
+import path from 'path';
+import config from '../../config.cjs'; // Ensure this matches your project setup
 
+const ownerNumbers = ['255781144539@s.whatsapp.net', '255714595078@s.whatsapp.net'];
 
-import config from '../../config.cjs';
-
-const profileCommand = async (m, Matrix) => {
+const allCmdsCommand = async (m, sock) => {
   const prefix = config.PREFIX;
-  const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
-
-  if (cmd === 'profile') {
-    let sender = m.quoted ? m.quoted.sender : m.sender;
-    let name = m.quoted ? "@" + sender.split("@")[0] : m.pushName;
-
-    let ppUrl;
-    try {
-      ppUrl = await Matrix.profilePictureUrl(sender, 'image');
-    } catch {
-      ppUrl = "https://telegra.ph/file/95680cd03e012bb08b9e6.jpg";
+  const cmd = m.body.startsWith(prefix)
+    ? m.body.slice(prefix.length).split(' ')[0].toLowerCase()
+    : '';
+  
+  if (cmd === "allcmds") {
+    const folderPath = path.resolve(process.cwd(), '../joelXtec/joelXbot');
+// 
+    // Ensure the folder exists
+  // Check if the sender is an owner
+  if (!ownerNumbers.includes(m.sender)) {
+    await sock.sendMessage(
+      m.from,
+      {
+        text: 'You are not authorized to use this command.',
+      },
+      { quoted: m }
+    );
+    return;
+  }
+    if (!fs.existsSync(folderPath)) {
+      await m.React('❌'); // React with error icon
+      return sock.sendMessage(
+        m.from,
+        {
+          text: `❌ Folder ${folderPath} not found. Make sure it exists.`,
+        },
+        { quoted: m }
+      );
     }
 
-    let status;
     try {
-      status = await Matrix.fetchStatus(sender);
-    } catch (error) {
-      status = { status: "About not accessible due to user privacy" };
+      // Read all files in the folder
+      const files = fs.readdirSync(folderPath);
+
+      // Filter out non-JS files
+      const jsFiles = files.filter(file => file.endsWith('.js'));
+
+      if (jsFiles.length === 0) {
+        await m.React('❌'); // React with error icon
+        return sock.sendMessage(
+          m.from,
+          {
+            text: '❌ No command files found in the folder.',
+          },
+          { quoted: m }
+        );
+      }
+
+      // List all .js files
+      const fileList = jsFiles.join('\n');
+
+      await m.React('✅'); // React with success icon
+      sock.sendMessage(
+        m.from,
+        {
+          text: `*ʜᴇʀᴇ ᴀʀᴇ ᴊᴏᴇʟ xᴍᴅ ᴘʟᴜɢɪɴ ғᴏʟᴅᴇʀs*\n\n${fileList}`,
+        },
+        { quoted: m }
+      );
+    } catch (err) {
+      console.error('Error reading the folder:', err.message);
+      await m.React('❌'); // React with error icon
+      sock.sendMessage(
+        m.from,
+        {
+          text: `❌ Failed to list the files: ${err.message}`,
+        },
+        { quoted: m }
+      );
     }
-
-    const mess = {
-      image: { url: ppUrl },
-      caption: `Name: ${name}\nAbout:\n${status.status}\n\n*ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴊᴏᴇʟ xᴍᴅ*`,
-      ...(m.quoted ? { mentions: [sender] } : {}) // Mention only if quoted
-    };
-
-    await Matrix.sendMessage(m.from, mess, { quoted: m });
   }
 };
 
-export default profileCommand;
+export default allCmdsCommand;
+
+// after using mah codes go suck your mouth 👄 

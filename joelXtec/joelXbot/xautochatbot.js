@@ -14,54 +14,80 @@
 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 made by lord joel
 contact owner +2557114595078
+
+CURRENTLY RUNNING ON BETA VERSION!!
+*
+   * @project_name : JOEL XMD
+   * @author : LORD_JOEL
+   * @youtube : https://www.youtube.com/@joeljamestech255
+   * @infoription : joel Md ,A Multi-functional whatsapp user bot.
+   * @version 10 
+*
+   * Licensed under the  GPL-3.0 License;
+* 
+   * ┌┤Created By joel tech info.
+   * © 2025 joel md ✭ ⛥.
+   * plugin date : 11/1/2025
+* 
+   * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+   * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   * SOFTWARE.
 */
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 import config from '../../config.cjs';
 
-const profileCommand = async (m, Matrix) => {
+const autotypingCommand = async (m, Matrix) => {
+  const botNumber = await Matrix.decodeJid(Matrix.user.id);
+  const isCreator = [botNumber, config.OWNER_NUMBER + '@s.whatsapp.net'].includes(m.sender);
   const prefix = config.PREFIX;
   const cmd = m.body.startsWith(prefix) ? m.body.slice(prefix.length).split(' ')[0].toLowerCase() : '';
+  const text = m.body.slice(prefix.length + cmd.length).trim();
 
-  if (cmd === 'profile') {
-    let sender = m.quoted ? m.quoted.sender : m.sender;
-    let name = m.quoted ? "@" + sender.split("@")[0] : m.pushName;
+  // List of all commands that should toggle the chatbot state
+  const validCommands = ['chatbot', 'lydea', 'lydia', 'answer', 'automreply'];
 
-    let ppUrl;
-    try {
-      ppUrl = await Matrix.profilePictureUrl(sender, 'image');
-    } catch {
-      ppUrl = "https://telegra.ph/file/95680cd03e012bb08b9e6.jpg";
+  // Check if the command is in the list of valid commands
+  if (validCommands.includes(cmd)) {
+    if (!isCreator) return m.reply("*ᴏᴡɴᴇʀ ᴄᴏᴍᴍᴀɴᴅ ᴍᴀᴅᴀғᴀᴋᴇʀ*");
+
+    let responseMessage;
+
+    // Toggle chatbot state based on the passed argument ('on' or 'off')
+    if (text === 'on') {
+      config.CHAT_BOT = true;
+      responseMessage = `${cmd.charAt(0).toUpperCase() + cmd.slice(1)}: Chatbot has been enabled.`;
+    } else if (text === 'off') {
+      config.CHAT_BOT = false;
+      responseMessage = `${cmd.charAt(0).toUpperCase() + cmd.slice(1)}: Chatbot has been disabled.`;
+    } else {
+      responseMessage = "Usage:\n- `command on`: Enable Chatbot\n- `command off`: Disable Chatbot";
     }
 
-    let status;
     try {
-      status = await Matrix.fetchStatus(sender);
+      await Matrix.sendMessage(m.from, { text: responseMessage }, { quoted: m });
     } catch (error) {
-      status = { status: "About not accessible due to user privacy" };
+      console.error("Error processing your request:", error);
+      await Matrix.sendMessage(m.from, { text: 'Error processing your request.' }, { quoted: m });
     }
-
-    const mess = {
-      image: { url: ppUrl },
-      caption: `Name: ${name}\nAbout:\n${status.status}\n\n*ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴊᴏᴇʟ xᴍᴅ*`,
-      ...(m.quoted ? { mentions: [sender] } : {}) // Mention only if quoted
-    };
-
-    await Matrix.sendMessage(m.from, mess, { quoted: m });
   }
 };
 
-export default profileCommand;
+export default autotypingCommand;
+
+
+/*
+
+1. chatbot on
+2. chatbot off
+3. lydea
+4. lydia
+5. bot
+6. automreply on
+7. automreply off
+
+                               */
